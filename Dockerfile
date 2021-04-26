@@ -1,18 +1,19 @@
-FROM debian:buster
+ARG CALIBRE_VERSION=5.16.1
+
+FROM ubuntu:20.04
+
+ARG CALIBRE_VERSION
 LABEL maintainer="me@ethandjeric.com"
 LABEL version="1.2-git"
-LABEL calibre_version="3.39.1"
-LABEL metadata.db_version="3.39.1-debian10"
+LABEL calibre_version="$CALIBRE_VERSION"
+LABEL metadata.db_version="$CALIBRE_VERSION"
 
 ENV IMPORT_TIME=10m UMASK_SET=022 DELETE_IMPORTED=false LIBRARY_UID=1000 LIBRARY_GID=1000 VERBOSE=false
 
 RUN apt-get update && \
-    apt-get install -y \
-    # I am sticking with python2 calibre in buster that is fairly old - 3.39.1 vs 5.3.0 in stable and testing)
-    # As this is a headless install I do not see the need for a newer version and v5 uses python3 which breaks compatibility with DeDRM.
-    # If you wish to include newer v5 calibre build from debian:bullseye/recent, ubuntu or use the official calibre install script instead of apt.
-        calibre \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
     # install kcc and deps
+        $(apt-cache depends calibre | grep Depends | sed "s/.*ends:\ //" | tr '\n' ' ')  \
         python3 \
         python3-wheel \
         python3-dev \
@@ -20,7 +21,8 @@ RUN apt-get update && \
         python3-setuptools \
         libpng-dev \
         libjpeg-dev \
-        p7zip-full && \
+        p7zip-full \
+        wget && \
     pip3 install \
         pillow \
         python-slugify==2.0.1 \
@@ -42,6 +44,7 @@ COPY image_root/ /
 
 USER root
 
-RUN calibre-customize --add-plugin /calibre/plugins/DeDRM_6.8.0.zip
+RUN wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin version=$CALIBRE_VERSION
+RUN calibre-customize --add-plugin /calibre/plugins/DeDRM_7.2.1.zip
 
 ENTRYPOINT ["/entrypoint.sh"]
